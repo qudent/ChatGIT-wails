@@ -1,0 +1,17 @@
+
+{
+  "branches": [
+    { "name": "main", "fullName": "refs/heads/main", "head": "C" },
+    { "name": "feature/x", "fullName": "refs/heads/feature/x", "head": "B2" }
+  ],
+  "commits": {
+    "A": { "id": "A", "tree": "tA", "parents": [], "author": { "name": "a", "email": "a@x", "when": "2025-01-01T00:00:00+01:00" }, "committer": { "name": "a", "email": "a@x", "when": "2025-01-01T00:00:00+01:00" }, "summary": "init", "message": "init" },
+    "B1": { "id": "B1", "tree": "tB1", "parents": ["A"], "author": { "name": "b", "email": "b@x", "when": "2025-01-02T00:00:00+01:00" }, "committer": { "name": "b", "email": "b@x", "when": "2025-01-02T00:00:00+01:00" }, "summary": "main work 1", "message": "main work 1" },
+    "B2": { "id": "B2", "tree": "tB2", "parents": ["A"], "author": { "name": "b", "email": "b@x", "when": "2025-01-02T01:00:00+01:00" }, "committer": { "name": "b", "email": "b@x", "when": "2025-01-02T01:00:00+01:00" }, "summary": "feature work 1", "message": "feature work 1" },
+    "C":  { "id": "C",  "tree": "tC",  "parents": ["B1","B2"], "author": { "name": "m", "email": "m@x", "when": "2025-01-03T00:00:00+01:00" }, "committer": { "name": "m", "email": "m@x", "when": "2025-01-03T00:00:00+01:00" }, "summary": "merge feature/x", "message": "merge feature/x", "extra": { "kind": "merge" } }
+  },
+  "firstParentOrder": ["A","B1","C"],
+  "mergeBases": [{ "a": "C", "b": "B2", "base": "A" }]
+}
+
+
