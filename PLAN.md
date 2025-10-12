@@ -38,10 +38,10 @@ Examples:
 - Wails App (Go) exposes methods/events to the frontend via bindings and runtime.Events.
 - Services:
   - GitService: shell out to git for reliability; operations: open repo, status, log (graph), show/diff, blame (later), checkout/branch/merge, apply patch, commit; must support `--allow-empty` commits and standardized commit message formatting with role prefixes and footers.
-  - ChatService: provider adapter (OpenAI/others), prompt assembly, streaming tokens, tool-call bridging for git/file ops; ensures every chat turn creates a message commit (`USER:`/`AGENT:`) and, upon approval of code changes, creates a follow-up patch commit with `Relates-To` linking.
+  - ChatService: provider adapter (OpenAI/others), prompt assembly, streaming tokens, tool-call bridging for git/file ops; ensures every chat turn creates a commit (`USER:`/`AGENT:`) and, upon approval of code changes, creates a follow-up patch commit with `Relates-To` linking. Messages are commits.
   - FSService: read/write files within repo, patch application guardrails, path sanitization.
   - DiffService: generate unified diffs, structured hunks, syntax-highlight metadata for viewer.
-  - SessionStore: local persistence for sessions, messages↔commit mapping, provider config (SQLite or BoltDB; decide at M0).
+  - SessionStore: local persistence for sessions/UI state (expanded threads, filters, selections), lightweight indices/caches, and provider config. No separate Message table — messages are commits. Storage can be SQLite/bbolt or repo-scoped JSON/Git notes.
   - Settings: key management (prefer OS keychain/env), model selection, safety limits.
   - Events: progress and streaming updates to UI (token stream, git operations).
 
@@ -61,10 +61,10 @@ Examples:
 6) Branch/PR Flow (local): create/switch branch, compare branches, merge with preview.
 
 ## Data Model (minimal)
-- Session {id, repoPath, createdAt, settingsRef}
-- Message {id, sessionId, role(USER|AGENT), content, ts, messageCommitSha}
-- Commit {sha, parents[], author, date, message, refs[], relatesToMessageSha?}
+- Commit {sha, parents[], author, date, subject, body, refs[], role(USER|AGENT), type(message|patch|manual-edit), relatesTo?}
 - Patch {files[], hunks[]}
+- UIState {expandedThreads, filters, selection}  // optional local persistence
+- Session {id, repoPath, createdAt, settingsRef} // optional; may also be recorded via commit footer `Session:`
 - Settings {provider, model, keyRef, limits}
 
 ## Security & Safety
@@ -102,7 +102,7 @@ Examples:
 
 ## Open Decisions
 - Frontend framework (default React unless specified).
-- Local DB: SQLite vs BoltDB.
+- Persistence: SQLite vs bbolt (or none). If omitted, use Git notes or repo-scoped JSON for UI state.
 - Provider(s) to support first: OpenAI, others.
 - OS coverage beyond macOS (Windows/Linux) and related git/path nuances.
  - Whether to optionally squash message+patch into a single commit for “quick apply” workflows (default: separate commits for clear auditability).
