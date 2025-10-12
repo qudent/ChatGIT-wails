@@ -32,18 +32,23 @@ Examples:
 ## Tech Stack
 - Platform: Wails v2 (Go 1.22+). Native desktop build with web UI.
 - Backend (Go): GitService, ChatService, FS/DiffService, SessionStore, Settings, Events.
-- Frontend: pick one at Milestone 0 (default: React; alternatives: Svelte/Vue). Implements the chat/graph layout described in `frontend/frontend_description.md`.
+- Frontend: Vite + Svelte (locked). Implements the chat/graph layout described in `frontend/frontend_description.md`.
 
 ## High-Level Architecture
 - Wails App (Go) exposes methods/events to the frontend via bindings and runtime.Events.
 - Services:
   - GitService: shell out to git for reliability; operations: open repo, status, log (graph), show/diff, blame (later), checkout/branch/merge, apply patch, commit; must support `--allow-empty` commits and standardized commit message formatting with role prefixes and footers.
-  - ChatService: provider adapter (OpenAI/others), prompt assembly, streaming tokens, tool-call bridging for git/file ops; ensures every chat turn creates a commit (`USER:`/`AGENT:`) and, upon approval of code changes, creates a follow-up patch commit with `Relates-To` linking. Messages are commits.
+  - ChatService: provider adapter (ShellCommand first-class; LLMs optional), prompt assembly, streaming tokens, tool-call bridging for git/file ops; ensures every chat turn creates a commit (`USER:`/`AGENT:`) and, upon approval of code changes, creates a follow-up patch commit with `Relates-To` linking. Messages are commits.
   - FSService: read/write files within repo, patch application guardrails, path sanitization.
   - DiffService: generate unified diffs, structured hunks, syntax-highlight metadata for viewer.
   - SessionStore: local persistence for sessions/UI state (expanded threads, filters, selections), lightweight indices/caches, and provider config. No separate Message table — messages are commits. Storage can be SQLite/bbolt or repo-scoped JSON/Git notes.
   - Settings: key management (prefer OS keychain/env), model selection, safety limits.
   - Events: progress and streaming updates to UI (token stream, git operations).
+
+### Provider: ShellCommand (first-class)
+- Config: command template (string), args, timeout, allowlist, working directory = repo root, env vars (safe subset).
+- Execution: spawn process, stream stdout to UI as tokens; on exit create `AGENT:` empty commit with full output as body (auto-add prefix if missing). Non-zero exit → commit `Type: message|error` with stderr summary.
+- Guardrails: allowlist commands, max output size, timeouts, kill on cancel, sanitize env, never execute outside repo.
 
 ## Frontend Surfaces
 - Chat View: spine of commits/messages with expandable side histories at merges (container queries + SVG connectors). Each bubble clearly shows role (`USER`/`AGENT`). Patch commits appear attached to or following their originating message bubble.
@@ -54,7 +59,7 @@ Examples:
 
 ## Core Flows
 1) Open Repo → index minimal metadata → render spine (first-parent) with ability to expand side histories to merge-base.
-2) User sends message → create empty commit with `USER:` prefix; agent responds → create empty commit with `AGENT:` prefix (streamed body finalized at completion).
+2) User sends message → create empty commit with `USER:` prefix; agent responds via provider (default: ShellCommand) → stream output and on completion create empty `AGENT:` commit (body = output).
 3) If a message leads to code changes: preview diff → on approval create a patch commit using the appropriate role prefix and add `Relates-To: <message-sha>`.
 4) Manual file edits: commit with `USER:` prefix, summarizing the change; optionally relate to the last message if applicable.
 5) Browse Commits → open diff/files → expand other parent at merges to view side thread.
@@ -89,8 +94,8 @@ Examples:
   - Done when repo opens, lists files, shows status, and can view commit log (spine only) with role-prefixed subjects rendered.
 - M2: Diff Viewer + File Viewer.
   - Done when a commit/file diff renders with hunk navigation and syntax colors.
-- M3: ChatService (stream) + Prompt Bar + Message Commits.
-  - Done when user/agent messages create `USER:`/`AGENT:` empty commits; tokens stream to UI; adapters pluggable.
+- M3: ChatService (ShellCommand stream) + Prompt Bar + Message Commits.
+  - Done when user/agent messages create `USER:`/`AGENT:` empty commits; ShellCommand output streams to UI; adapters pluggable.
 - M4: Patch Proposal → Preview → Apply → Patch Commit.
   - Done when model-proposed changes can be previewed and, on approval, committed with a role prefix and `Relates-To` link to the originating message commit.
 - M5: Graph UI per `frontend/frontend_description.md` (expandable side histories with SVG connectors).
@@ -101,11 +106,15 @@ Examples:
   - Done when macOS build is packaged; basic test suite passes; crash logs captured.
 
 ## Open Decisions
-- Frontend framework (default React unless specified).
+- Frontend: Vite + Svelte (locked).
 - Persistence: SQLite vs bbolt (or none). If omitted, use Git notes or repo-scoped JSON for UI state.
-- Provider(s) to support first: OpenAI, others.
-- OS coverage beyond macOS (Windows/Linux) and related git/path nuances.
- - Whether to optionally squash message+patch into a single commit for “quick apply” workflows (default: separate commits for clear auditability).
+- Providers: ShellCommand (default); LLM adapters optional.
+- OS coverage: macOS + Linux (Windows out of scope for now).
+
+## OS Coverage: macOS + Linux
+- Shell: prefer executing commands directly; when a shell is needed, use `/bin/sh -c` for POSIX portability; avoid bashisms.
+- Key storage: macOS Keychain vs Linux Secret Service/Keyring; provide file/env fallback.
+- Packaging: macOS (app bundle); Linux (AppImage/Deb). File watching and paths differ slightly; keep repo operations via git to minimize OS variance.
 
 ## Risks/Mitigations
 - Large repos: paginate logs and lazy-load diffs; cap history range by default.
