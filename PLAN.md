@@ -42,7 +42,7 @@ Examples:
   - FSService: read/write files within repo, patch application guardrails, path sanitization.
   - DiffService: generate unified diffs, structured hunks, syntax-highlight metadata for viewer.
   - SessionStore: local persistence for sessions/UI state (expanded threads, filters, selections), lightweight indices/caches, and provider config. No separate Message table — messages are commits. Storage can be SQLite/bbolt or repo-scoped JSON/Git notes.
-  - Settings: key management (prefer OS keychain/env), model selection, safety limits.
+  - Settings: key management via environment variables only (no keychain/keyring), model selection, safety limits.
   - Events: progress and streaming updates to UI (token stream, git operations).
 
 ### Provider: ShellCommand (first-class)
@@ -75,7 +75,7 @@ Examples:
 ## Security & Safety
 - Never execute arbitrary commands from the model; only whitelisted git/file ops.
 - Path sanitization; disallow writes outside repo.
-- Key storage via OS keychain or env vars; do not persist secrets in plaintext.
+- API keys are sourced from environment variables only; never persist secrets.
 - Pre-apply validation for patches; dry-run where possible.
 
 ## Testing Strategy
@@ -101,7 +101,7 @@ Examples:
 - M5: Graph UI per `frontend/frontend_description.md` (expandable side histories with SVG connectors).
   - Done when merges can expand/collapse to show side threads up to merge-base across breakpoints.
 - M6: Persistence & Settings.
-  - Done when sessions and settings persist locally; provider keys managed securely.
+  - Done when sessions and settings persist locally; provider keys are read from env and never persisted.
 - M7: Packaging & QA.
   - Done when macOS build is packaged; basic test suite passes; crash logs captured.
 
@@ -113,7 +113,7 @@ Examples:
 
 ## OS Coverage: macOS + Linux
 - Shell: prefer executing commands directly; when a shell is needed, use `/bin/sh -c` for POSIX portability; avoid bashisms.
-- Key storage: macOS Keychain vs Linux Secret Service/Keyring; provide file/env fallback.
+- Key storage: environment variables only; no keychain/keyring.
 - Packaging: macOS (app bundle); Linux (AppImage/Deb). File watching and paths differ slightly; keep repo operations via git to minimize OS variance.
 
 ## Risks/Mitigations
