@@ -1,3 +1,5 @@
+Note the important-notes-that-agents-got-wrong-on-the-first-attempt.md! You got that wrong at first.
+
 Of course — here’s a ready-to-copy version that includes a clear preamble summarizing the design philosophy and context, followed by the full technical layout spec from my previous message.
 It’s written so that if you paste it into a UI builder (like Lovable), your collaborators or AI builder will immediately understand what you’re aiming for.
 
