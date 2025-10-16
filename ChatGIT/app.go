@@ -3,13 +3,13 @@ package main
 import (
 	"ChatGIT/internal/config"
 	"ChatGIT/internal/logger"
+	"ChatGIT/internal/models"
 	"ChatGIT/internal/services/chat"
 	"ChatGIT/internal/services/diff"
 	"ChatGIT/internal/services/fs"
 	"ChatGIT/internal/services/git"
 	"ChatGIT/internal/services/session"
 	"ChatGIT/internal/services/settings"
-	"ChatGIT/internal/models"
 	"context"
 	"fmt"
 
@@ -19,11 +19,11 @@ import (
 // App struct
 type App struct {
 	ctx context.Context
-	
+
 	// Configuration and logging
 	cfg    *config.Config
 	logger *logger.Logger
-	
+
 	// Services
 	gitService      git.Service
 	fsService       fs.Service
@@ -31,7 +31,7 @@ type App struct {
 	chatService     chat.Service
 	settingsService settings.Service
 	sessionService  session.Service
-	
+
 	// Chat provider
 	chatProvider chat.Provider
 }
@@ -44,17 +44,17 @@ func NewApp() *App {
 // startup is called at application startup
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	
+
 	// Initialize configuration
 	a.cfg = config.Load()
-	
+
 	// Initialize logger
 	a.logger = logger.New(a.cfg.GetLogLevel(), a.cfg.GetLogFormat())
 	a.logger.Info("ChatGIT application starting up")
-	
+
 	// Initialize services
 	a.initializeServices()
-	
+
 	a.logger.Info("ChatGIT application ready")
 }
 
@@ -62,19 +62,19 @@ func (a *App) startup(ctx context.Context) {
 func (a *App) initializeServices() {
 	// Initialize git service
 	a.gitService = git.New(a.logger)
-	
+
 	// Initialize file system service
 	a.fsService = fs.New(a.logger)
-	
+
 	// Initialize diff service
 	a.diffService = diff.New(a.logger)
-	
+
 	// Initialize settings service
 	a.settingsService = settings.New(a.logger)
-	
+
 	// Initialize session service
 	a.sessionService = session.New(a.cfg, a.logger)
-	
+
 	// Initialize chat provider
 	chatConfig, _ := a.settingsService.GetChatConfig(context.Background())
 	if chatConfig != nil {
@@ -82,13 +82,13 @@ func (a *App) initializeServices() {
 	} else {
 		a.chatProvider = chat.NewOpenAIProvider(a.logger, "", "")
 	}
-	
+
 	// Initialize chat service
 	a.chatService = chat.New(a.logger, a.chatProvider)
 }
 
 // domReady is called after front-end resources have been loaded
-func (a App) domReady(ctx context.Context) {
+func (a *App) domReady(ctx context.Context) {
 	a.logger.Debug("Frontend is ready")
 }
 
@@ -108,30 +108,30 @@ func (a *App) shutdown(ctx context.Context) {
 // SetGitRepository sets the current git repository
 func (a *App) SetGitRepository(path string) error {
 	a.logger.Info("Setting git repository: %s", path)
-	
+
 	// Set repository in git service
 	if err := a.gitService.SetRepo(path); err != nil {
 		return fmt.Errorf("failed to set git repository: %w", err)
 	}
-	
+
 	// Update file system service
 	a.fsService.SetRepoRoot(path)
-	
+
 	// Update diff service with repository
 	a.diffService.SetRepository(a.gitService.GetRepository())
-	
+
 	// Save to session state
 	if state, err := a.sessionService.GetUIState(context.Background()); err == nil {
 		state.CurrentRepo = path
 		_ = a.sessionService.SaveUIState(context.Background(), state)
 	}
-	
+
 	// Save repo metadata
 	metadata, _ := a.sessionService.GetRepoMetadata(context.Background(), path)
 	metadata.Path = path
 	metadata.LastUsed = 0 // Will be updated by session service
 	_ = a.sessionService.SaveRepoMetadata(context.Background(), metadata)
-	
+
 	return nil
 }
 
